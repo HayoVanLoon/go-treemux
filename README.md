@@ -5,7 +5,7 @@
 TreeMux is an HTTP request multiplexer that routes using a tree structure.
 
 Wildcards ("*") are used to indicate flexible path elements in a resource URL,
-which can then be mapped to a single Handler function.
+which can then be mapped to a single Handler (function).
 
 # Example
 With the following route:
