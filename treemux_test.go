@@ -27,7 +27,7 @@ func TestTreeMux_Handle(t *testing.T) {
 		_, _ = w.Write([]byte("not!found!"))
 	}
 
-	tr := NewTreeMuxWithNotFound(notFound)
+	tr := NewTreeMux(OptionNotFound(notFound))
 	tr.HandleFunc("foo/bar", handleFunc)
 	tr.HandleFunc("/moo", handleFunc)
 	tr.Handle("/moo/*", testHandler{})

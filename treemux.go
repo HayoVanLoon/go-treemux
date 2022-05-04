@@ -66,20 +66,34 @@ func (t treeMux) Handler(r *http.Request) (http.Handler, string) {
 }
 
 // NewTreeMux creates a new tree-based request multiplexer. If a request path
-// cannot be matched the standard `http.NotFound` will be used.
-func NewTreeMux() TreeMux {
-	return NewTreeMuxWithNotFound(nil)
+// cannot be matched, the standard `http.NotFound` will be used unless
+// OptionNotFound specifies a different one.
+func NewTreeMux(options ...Option) TreeMux {
+	t := &treeMux{
+		trie:     newWildcardTrie("/"),
+		notFound: http.NotFound,
+	}
+	for _, o := range options {
+		o.Apply(t)
+	}
+	return t
 }
 
-// NewTreeMuxWithNotFound creates a new tree-based request multiplexer. If a
-// request path cannot be matched, the specified HandlerFunc will be used. If
-// set to `nil`, the default `http.NotFound` will be used.
-func NewTreeMuxWithNotFound(notFound http.HandlerFunc) TreeMux {
-	if notFound == nil {
-		notFound = http.NotFound
-	}
-	return &treeMux{
-		trie:     newWildcardTrie("/"),
-		notFound: notFound,
-	}
+type Option interface {
+	Apply(mux *treeMux)
+	private()
+}
+
+type optionNotFound struct {
+	value http.HandlerFunc
+}
+
+func (o optionNotFound) Apply(mux *treeMux) {
+	mux.notFound = o.value
+}
+
+func (o optionNotFound) private() {}
+
+func OptionNotFound(handler http.HandlerFunc) Option {
+	return optionNotFound{handler}
 }
