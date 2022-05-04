@@ -5,7 +5,7 @@
 // TreeMux is an HTTP request multiplexer that routes using a tree structure.
 //
 // Wildcards ("*") are used to indicate flexible path elements in a resource
-// URL, which can then be mapped to a single Handler function.
+// URL, which can then be mapped to a single Handler (function).
 //
 // Example:
 // With the following route:
@@ -34,7 +34,9 @@ type TreeMux interface {
 
 	// HandleFunc adds a new http.HandlerFunc for the given path. See Handle for
 	// more details.
-	HandleFunc(path string, handler http.HandlerFunc)
+	HandleFunc(path string, handler func(http.ResponseWriter, *http.Request))
+
+	Handler(r *http.Request) (h http.Handler, pattern string)
 }
 
 type treeMux struct {
@@ -42,26 +44,25 @@ type treeMux struct {
 	notFound http.HandlerFunc
 }
 
-func (t treeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	v, found := t.trie.Get(r.URL.Path)
-	if !found {
-		t.notFound(w, r)
-		return
-	}
-	switch h := v.(type) {
-	case http.Handler:
-		h.ServeHTTP(w, r)
-	case http.HandlerFunc:
-		h(w, r)
-	}
+func (t *treeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h, _ := t.Handler(r)
+	h.ServeHTTP(w, r)
 }
 
 func (t *treeMux) Handle(path string, handler http.Handler) {
 	t.trie.Add(path, handler)
 }
 
-func (t *treeMux) HandleFunc(path string, handler http.HandlerFunc) {
-	t.trie.Add(path, handler)
+func (t *treeMux) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
+	t.Handle(pattern, http.HandlerFunc(handler))
+}
+
+func (t treeMux) Handler(r *http.Request) (http.Handler, string) {
+	v, pattern := t.trie.Get(r.URL.Path)
+	if pattern == "" {
+		return t.notFound, pattern
+	}
+	return v.(http.Handler), r.URL.Path
 }
 
 // NewTreeMux creates a new tree-based request multiplexer. If a request path

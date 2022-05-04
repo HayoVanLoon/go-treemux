@@ -11,13 +11,14 @@ import (
 )
 
 type WildcardTrie interface {
-	Get(s string) (interface{}, bool)
+	Get(s string) (interface{}, string)
 	Add(s string, v interface{})
 }
 
 type wildcardTrie struct {
 	separator string
 	key       string
+	pattern   string
 	value     interface{}
 	children  []wildcardTrie
 }
@@ -63,7 +64,7 @@ func (t *wildcardTrie) grow(idx int, xs []string, v interface{}) {
 		}
 	}
 	if len(xs) > idx {
-		c := wildcardTrie{separator: t.separator, key: xs[idx]}
+		c := newTrie(t.separator, xs[idx], xs[:idx+1])
 		if len(xs) == idx+1 {
 			c.value = v
 		} else {
@@ -73,6 +74,10 @@ func (t *wildcardTrie) grow(idx int, xs []string, v interface{}) {
 	}
 }
 
+func newTrie(sep, key string, path []string) wildcardTrie {
+	return wildcardTrie{separator: sep, key: key, pattern: "/" + strings.Join(path, sep)}
+}
+
 const wildcard = "*"
 
 // Get attempts to retrieve the data from the specified path, split up by the
@@ -80,36 +85,36 @@ const wildcard = "*"
 //
 // Wildcard elements hold no special status over other elements. When, due to a
 // wildcard, a path has two valid end points, the one inserted earliest wins.
-func (t *wildcardTrie) Get(s string) (interface{}, bool) {
+func (t *wildcardTrie) Get(s string) (interface{}, string) {
 	// TODO(hvl): input validation
 	xs := strings.Split(s, t.separator)
 	if xs[0] == "" {
 		return t.get(0, xs, wildcard)
 	}
 	for _, c := range t.children {
-		if v, found := c.get(0, xs, wildcard); found {
-			return v, found
+		if v, pattern := c.get(0, xs, wildcard); pattern != "" {
+			return v, pattern
 		}
 	}
-	return nil, false
+	return nil, ""
 }
 
-func (t *wildcardTrie) get(idx int, xs []string, wildcard string) (interface{}, bool) {
+func (t *wildcardTrie) get(idx int, xs []string, wildcard string) (interface{}, string) {
 	if xs[idx] != t.key && t.key != wildcard {
 		if t.key == "" && len(t.children) == 0 {
-			return t.value, true
+			return t.value, t.pattern
 		}
-		return nil, false
+		return nil, ""
 	}
 	if len(xs)-idx == 1 {
-		return t.value, true
+		return t.value, t.pattern
 	}
 	for _, c := range t.children {
-		if v, found := c.get(idx+1, xs, wildcard); found {
-			return v, found
+		if v, pattern := c.get(idx+1, xs, wildcard); pattern != "" {
+			return v, pattern
 		}
 	}
-	return nil, false
+	return nil, ""
 }
 
 func (t *wildcardTrie) equals(other wildcardTrie) bool {
@@ -117,6 +122,9 @@ func (t *wildcardTrie) equals(other wildcardTrie) bool {
 		return false
 	}
 	if t.key != other.key {
+		return false
+	}
+	if t.pattern != other.pattern {
 		return false
 	}
 	if !reflect.DeepEqual(t.value, other.value) {
@@ -144,7 +152,7 @@ func (t wildcardTrie) String() string {
 
 func (t *wildcardTrie) string(b *strings.Builder) {
 	b.WriteString("{\"")
-	b.WriteString(t.key)
+	b.WriteString(t.pattern)
 	b.WriteString(fmt.Sprintf("\"=%v", t.value))
 	if len(t.children) > 0 {
 		b.WriteString(",[")
