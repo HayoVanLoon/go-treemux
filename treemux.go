@@ -18,7 +18,10 @@
 
 package treemux
 
-import "net/http"
+import (
+	"log"
+	"net/http"
+)
 
 type TreeMux interface {
 	http.Handler
@@ -42,10 +45,14 @@ type TreeMux interface {
 type treeMux struct {
 	trie     WildcardTrie
 	notFound http.HandlerFunc
+	debug    bool
 }
 
 func (t *treeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h, _ := t.Handler(r)
+	h, p := t.Handler(r)
+	if t.debug {
+		log.Printf("DEBUG: used route pattern '%s' for '%s'", p, r.URL.Path)
+	}
 	h.ServeHTTP(w, r)
 }
 
@@ -96,4 +103,17 @@ func (o optionNotFound) private() {}
 
 func OptionNotFound(handler http.HandlerFunc) Option {
 	return optionNotFound{handler}
+}
+
+type optionDebug struct {
+}
+
+func (o optionDebug) Apply(mux *treeMux) {
+	mux.debug = true
+}
+
+func (o optionDebug) private() {}
+
+func OptionDebug() Option {
+	return optionDebug{}
 }
