@@ -27,19 +27,11 @@ func TestTreeMux_Handle(t *testing.T) {
 		_, _ = w.Write([]byte("not!found!"))
 	}
 
-	tr := NewTreeMux(OptionNotFound(notFound))
-	tr.HandleFunc("foo/bar", handleFunc)
-	tr.HandleFunc("/moo", handleFunc)
-	tr.Handle("/moo/*", testHandler{})
-
-	s := httptest.NewServer(tr)
-	defer s.Close()
-
 	cases := []struct {
-		name string
-		path string
-		code int
-		body string
+		name     string
+		path     string
+		wantCode int
+		wantBody string
 	}{
 		{"double elements", "/foo/bar", 200, "HandleFunc!"},
 		{"not found", "/foo/meow", 404, "not!found!"},
@@ -50,16 +42,24 @@ func TestTreeMux_Handle(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			tr := NewTreeMux(OptionNotFound(notFound), OptionDebug())
+			tr.HandleFunc("foo/bar", handleFunc)
+			tr.HandleFunc("/moo", handleFunc)
+			tr.Handle("/moo/*", testHandler{})
+
+			s := httptest.NewServer(tr)
+			defer s.Close()
+
 			resp, err := s.Client().Get(s.URL + c.path)
 			if err != nil {
 				t.Errorf("unexpected error %v", err)
 			}
-			if resp.StatusCode != c.code {
-				t.Errorf("expected %v, got %v", c.code, resp.StatusCode)
+			if resp.StatusCode != c.wantCode {
+				t.Errorf("expected %v, got %v", c.wantCode, resp.StatusCode)
 			}
 			bs, _ := ioutil.ReadAll(resp.Body)
-			if string(bs) != c.body {
-				t.Errorf("expected %s, got %v", c.body, string(bs))
+			if string(bs) != c.wantBody {
+				t.Errorf("expected %s, got %v", c.wantBody, string(bs))
 			}
 		})
 	}
