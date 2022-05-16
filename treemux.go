@@ -2,20 +2,21 @@
 // Use of this source code is governed by an Apache
 // license that can be found in the LICENSE file.
 
-// TreeMux is an HTTP request multiplexer that routes using a tree structure.
+// Package treemux provides an HTTP request multiplexer that routes using a tree
+// structure.
 //
 // Wildcards ("*") are used to indicate flexible path elements in a resource
 // URL, which can then be mapped to a single Handler (function).
 //
 // Example:
 // With the following route:
-//   t.Handle("/countries/*/cities", handleCities)
-// Paths like these will be handled by `handleCities`:
-//   "/countries/belgium/cities"
-//   "/countries/france/cities"
+//   t.Handle("/countries/*/cities/*", handleCity)
+// Paths like these will be handled by `handleCity`:
+//   "/countries/belgium/cities/wommelgem"
+//   "/countries/france/cities/lille"
 //
-// There is no support for elements with partial wildcards (i.e. `/foo*/bar`).
-
+// Wildcard cannot be used for parts of an element (i.e. `/foo*/bar` will not
+// work).
 package treemux
 
 import (
